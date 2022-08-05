@@ -20,13 +20,6 @@ const authURL        = ring.AuthBaseURL
 const oauthClientID = "ring_official_android"
 const oauthScope    = "client"
 
-type Config struct {
-	client   	 *http.Client
-	ClientID 	 string
-	AuthURL    *url.URL
-	Scope 	 	 string
-}
-
 type Oauth struct {
 	ClientID					string		`json:"client_id"`
 	Scope							string		`json:"scope"`
@@ -37,6 +30,13 @@ type Oauth struct {
 	AccessToken				string		`json:"access_token,omitempty"`
 	RefreshToken 			string 		`json:"refresh_token,omitempty"`
 	HardwareId 				uuid.UUID `json:"hardware_id"`
+}
+
+type Config struct {
+	client   	 *http.Client
+	ClientID 	 string
+	AuthURL    *url.URL
+	Scope 	 	 string
 }
 
 func NewConfig(httpClient *http.Client) *Config {
@@ -53,7 +53,32 @@ func NewConfig(httpClient *http.Client) *Config {
 	return c
 }
 
-func Auth(ctx context.Context, oauth Oauth) {
+type ConfigOpt func(*Config) error
+
+func NewConfigWithOptions(httpClient *http.Client, opts ...ConfigOpt) (*Config, error) {
+	c := NewConfig(httpClient)
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, err
+		}
+	}
+	return c, nil
+}
+
+// SetAuthURL is a config option for setting the base URL.
+func SetAuthURL(bu string) ConfigOpt {
+	return func(c *Config) error {
+		u, err := url.Parse(bu)
+		if err != nil {
+			return err
+		}
+
+		c.AuthURL = u
+		return nil
+	}
+}
+
+func Auth(ctx context.Context, config *Config, oauth Oauth) {
 	oauth.ClientID = oauthClientID
 	oauth.Scope = oauthScope
 	oauth.HardwareId = uuid.New()
@@ -76,15 +101,14 @@ func Auth(ctx context.Context, oauth Oauth) {
 
 	// Build HTTP request
 	data, err := json.Marshal(oauth);	Check(err)
-	req, err := http.NewRequest("POST", authURL, bytes.NewReader(data)); Check(err)
+	req, err := http.NewRequest("POST", config.AuthURL.String(), bytes.NewReader(data)); Check(err)
 
 	req.Header.Set("2fa-support", "true")
 	req.Header.Set("2fa-code", oauth.TwoFactorAuthCode)
 	req.Header.Set("hardware_id", oauth.HardwareId.String())
 	req.Header.Set("Content-Type", "application/json")
 
-	client, err := ring.NewClient(nil); Check(err)
-	resp, err := client.HttpClient.Do(req); Check(err)
+	resp, err := config.client.Do(req); Check(err)
 	defer resp.Body.Close()
 
 	//DEBUG
@@ -100,7 +124,7 @@ func Auth(ctx context.Context, oauth Oauth) {
 		if val, ok := responseBody["tsv_state"]; ok {
 			if val == "sms" {
 				oauth.TwoFactorAuthCode = GetInput("Please enter the code sent to " + responseBody["phone"].(string) + ": ")
-				Auth(ctx, oauth)
+				Auth(ctx, config, oauth)
 			}
 		}
 	}

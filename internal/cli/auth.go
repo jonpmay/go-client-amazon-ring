@@ -16,8 +16,9 @@ var authLoginCmd = &cobra.Command{
 	Use: "login",
 	Short: "Authenticate to Ring and retrieve a token",
 	Run: func (cmd *cobra.Command, args []string) {
-		authRequest := auth.Oauth{}
-		auth.Auth(context.Background(), authRequest)
+		oauth := auth.Oauth{}
+		config := auth.NewConfig(nil)
+		auth.Auth(context.Background(), config, oauth)
 	},
 }
 
