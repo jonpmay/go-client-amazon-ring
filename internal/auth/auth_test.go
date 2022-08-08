@@ -18,27 +18,29 @@ func TestRequest(t *testing.T) {
 	twoFactorAuthCode := "123456"
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
-		w.Header().Set("Content-Type", "application/json")
-
 		var responseBody map[string]interface{}
 		b, _ := ioutil.ReadAll(r.Body)
 		json.Unmarshal(b, &responseBody)
 		
 		// Check test credentials
 		if responseBody["username"] == username && responseBody["password"] == password && responseBody["2fa-code"] == twoFactorAuthCode {
+			data, _ := json.Marshal(fixture("authResult.json"))
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			w.Write(data)
+			json.NewEncoder(w).Encode(data)
 		} else {
 			t.Fatal()
 		}
 	})
 
-	oauth := Oauth{
+	authInfo := &AuthInfo{
 		Username: username,
 		Password: password,
 		TwoFactorAuthCode: twoFactorAuthCode,
 	}
 
-	Auth(context.Background(), config, oauth)
+	Auth(context.Background(), config, authInfo)
 }
 
 var (

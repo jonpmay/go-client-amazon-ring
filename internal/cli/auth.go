@@ -2,9 +2,10 @@ package cli
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/spf13/cobra"
 	auth "github.com/jonpmay/go-client-amazon-ring/internal/auth"
+	"github.com/spf13/cobra"
 )
 
 var authCmd = &cobra.Command{
@@ -16,9 +17,14 @@ var authLoginCmd = &cobra.Command{
 	Use: "login",
 	Short: "Authenticate to Ring and retrieve a token",
 	Run: func (cmd *cobra.Command, args []string) {
-		oauth := auth.Oauth{}
 		config := auth.NewConfig(nil)
-		auth.Auth(context.Background(), config, oauth)
+		authInfo := &auth.AuthInfo{
+			Username: "",
+			Password: "",
+			TwoFactorAuthCode: "",
+		}
+		token := config.Auth(context.Background(), authInfo)
+		fmt.Println(token)
 	},
 }
 
