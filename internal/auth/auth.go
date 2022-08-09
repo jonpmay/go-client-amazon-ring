@@ -87,23 +87,23 @@ func SetAuthURL(bu string) ConfigOpt {
 	}
 }
 
-func (config *Config) Auth(ctx context.Context, authInfo *AuthInfo) *Token {
-	authInfo.ClientID = authClientID
-	authInfo.Scope = tokenScope
-	authInfo.HardwareId = uuid.New()
-	token := &Token{}
+func (config *Config) Auth(ctx context.Context, ai *AuthInfo) *Token {
+	ai.ClientID = authClientID
+	ai.Scope = tokenScope
+	ai.HardwareId = uuid.New()
+	t := &Token{}
 
 	// If refresh token is not present, enter username/password
-	if authInfo.RefreshToken != "" {
-		authInfo.GrantType = "refresh_token"
+	if ai.RefreshToken != "" {
+		ai.GrantType = "refresh_token"
 	} else {
-		authInfo.GrantType = "password"
-		if authInfo.TwoFactorAuthCode == "" {
-			if authInfo.Username == "" {
-				authInfo.Username = GetInput("Enter Ring email address: ")
+		ai.GrantType = "password"
+		if ai.TwoFactorAuthCode == "" {
+			if ai.Username == "" {
+				ai.Username = GetInput("Enter Ring email address: ")
 			}
-			if authInfo.Password == "" {
-				authInfo.Password = GetInput("Enter Ring password: ")
+			if ai.Password == "" {
+				ai.Password = GetInput("Enter Ring password: ")
 			}
 		}
 	}
@@ -111,27 +111,27 @@ func (config *Config) Auth(ctx context.Context, authInfo *AuthInfo) *Token {
 	count := 0
 	for {
 		req := &http.Request{}
-		*req = config.createRequest(*authInfo)
+		*req = config.createRequest(*ai)
 		resp, jsonBody := config.makeRequest(req)
 
 		switch {
 		case resp.StatusCode == 412:
 			if val, ok := jsonBody["tsv_state"]; ok {
 				if val == "sms" {
-					authInfo.TwoFactorAuthCode = GetInput("Please enter the code sent to " + jsonBody["phone"].(string) + ": ")
+					ai.TwoFactorAuthCode = GetInput("Please enter the code sent to " + jsonBody["phone"].(string) + ": ")
 				}
 			}
 		case resp.StatusCode == 400 && strings.HasPrefix(jsonBody["error"].(string), "Verification Code"):
-			authInfo.TwoFactorAuthCode = GetInput("Please enter the code sent to " + jsonBody["phone"].(string) + ": ")
+			ai.TwoFactorAuthCode = GetInput("Please enter the code sent to " + jsonBody["phone"].(string) + ": ")
 		case resp.StatusCode == 429:
 			panic("Received HTTP StatusCode 429: Too many requests")
 		case resp.StatusCode == 200:
-			token.AccessToken = jsonBody["access_token"].(string)
-			token.RefreshToken = jsonBody["refresh_token"].(string)
-			token.ExpiresIn = jsonBody["expires_in"].(float64)
-			token.Expires = time.Now().Add(time.Second * time.Duration(token.ExpiresIn))
-			token.Scope = jsonBody["scope"].(string)
-			token.TokenType = jsonBody["token_type"].(string)
+			t.AccessToken = jsonBody["access_token"].(string)
+			t.RefreshToken = jsonBody["refresh_token"].(string)
+			t.ExpiresIn = jsonBody["expires_in"].(float64)
+			t.Expires = time.Now().Add(time.Second * time.Duration(t.ExpiresIn))
+			t.Scope = jsonBody["scope"].(string)
+			t.TokenType = jsonBody["token_type"].(string)
 		}
 		
 		if resp.StatusCode == 200 || count >= 3 {
@@ -141,7 +141,7 @@ func (config *Config) Auth(ctx context.Context, authInfo *AuthInfo) *Token {
 		}
 	}
 
-	return token
+	return t
 }
 
 func (config *Config) makeRequest(req *http.Request) (http.Response, map[string]interface{}) {
