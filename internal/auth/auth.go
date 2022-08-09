@@ -29,11 +29,8 @@ type AuthInfo struct {
 	Password  				string 		`json:"password,omitempty"`
 	TwoFactorAuthCode string 		`json:"2fa-code,omitempty"`
 	HardwareId 				uuid.UUID `json:"hardware_id"`
-	AccessToken	 			string		`json:"access_token,omitempty"`
 	RefreshToken 			string 	 	`json:"refresh_token,omitempty"`
 	TokenType 	 			string 	 	`json:"token_type"`
-	ExpiresIn 	 			float64 	`json:"expires_in"`
-	Expires 		 			time.Time
 }
 
 type Token struct {
@@ -132,7 +129,7 @@ func (config *Config) Auth(ctx context.Context, authInfo *AuthInfo) *Token {
 			token.AccessToken = jsonBody["access_token"].(string)
 			token.RefreshToken = jsonBody["refresh_token"].(string)
 			token.ExpiresIn = jsonBody["expires_in"].(float64)
-			token.Expires = time.Now().Add(time.Second * time.Duration(authInfo.ExpiresIn))
+			token.Expires = time.Now().Add(time.Second * time.Duration(token.ExpiresIn))
 			token.Scope = jsonBody["scope"].(string)
 			token.TokenType = jsonBody["token_type"].(string)
 		}
