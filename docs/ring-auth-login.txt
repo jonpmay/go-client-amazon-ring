@@ -1,0 +1,14 @@
+title ring auth login
+
+cli.auth->cli.auth: initialize auth.Config{} and auth.Auth{}
+cli.auth->auth.auth: get token using PasswordGrant()
+auth.auth->auth.auth: initialize auth.Token{}
+auth.auth-->auth.auth: if username or password are blank, prompt for input
+auth.auth->auth.auth: create reqBody using Auth and Config properties
+auth.auth->Ring API: POST authentication
+Ring API-->auth.auth: if missing/incorrect 2FA, trigger MFA
+auth.auth-->auth.auth: prompt for 2FA code
+auth.auth-->Ring API: POST authentication w/ 2FA
+Ring API->auth.auth: 200: return token
+auth.auth->auth.auth: save token to Token{} pointer
+auth.auth->cli.auth: return token.Token
